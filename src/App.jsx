@@ -53,6 +53,9 @@ function Order(){
       api.get('/customer/profile')
     ]).then(([plansRes,profileRes])=>{
       setP(plansRes.data||[]);
+      const queryPlan=new URLSearchParams(window.location.search).get('plan');
+      const requestedPlan=(plansRes.data||[]).find(x=>x.id===Number(queryPlan));
+      if(requestedPlan)setF(prev=>({...prev,plan_id:requestedPlan.id}));
       const addresses=profileRes.data?.addresses||[];
       setA(addresses);
       const defaultAddress=addresses.find(x=>Number(x.is_default)===1)||addresses[0];
@@ -98,8 +101,10 @@ function Order(){
       setBusy(true);setMsg('');
       const o=await createOrder();
       if(paymentMethod==='cod'){
+        if(!o?.orderId)throw new Error('COD order was not created by the server');
         setBusy(false);
-        setMsg('COD order placed successfully. Please keep ₹'+Number(o.amount||plan.price).toLocaleString('en-IN')+' ready at delivery.');
+        const payable=Number(o.amount ?? o.total_amount ?? plan.price);
+        setMsg('COD order placed successfully. Please keep ₹'+payable.toLocaleString('en-IN')+' ready at delivery.');
         setTimeout(()=>nav('/my-orders'),1100);
         return;
       }
