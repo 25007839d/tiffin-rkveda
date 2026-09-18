@@ -1,11 +1,42 @@
+# RKVeda Tiffin Frontend
 
+React + Vite frontend for **RKVeda Tiffin — Vrindavan, Mathura**.
 
-## Cashfree whitelisting pages added
+## Current updates
 
-Public pages added for payment-gateway website verification:
-- `/contact`
-- `/terms`
-- `/refund-cancellation`
-- `/privacy`
+- Cashfree hosted checkout using Cashfree JS SDK v3.
+- Backend payment flow:
+  - `POST /api/orders`
+  - `POST /api/payments/create`
+  - Cashfree checkout using `payment_session_id`
+  - return to `/payment/callback`
+  - `POST /api/payments/verify` for server-side verification
+- Razorpay frontend script and checkout code removed.
+- Business contact updated:
+  - +91 81260 37298
+  - +91 98730 81994
+  - Vrindavan, Mathura, Uttar Pradesh
+  - support@rkveda.in
+- Vrindavan-oriented home, plans, checkout, contact and policy copy.
+- Cashfree whitelisting pages remain available:
+  - `/contact`
+  - `/terms`
+  - `/refund-cancellation`
+  - `/privacy`
+- Admin menu image upload UI remains available, and uploaded menu images are displayed on the public menu when the API returns their URLs.
 
-The footer links to all policy pages. Product pricing is displayed in INR on the existing menu, plans and checkout pages.
+## Environment
+
+Set these in the Hostinger Node/Vite build environment:
+
+`VITE_API_BASE_URL=https://tiffin-api.rkveda.in/api`
+
+`VITE_CASHFREE_MODE=sandbox` for testing.
+
+Change to `production` only when the Cashfree production credentials/configuration are active on the backend.
+
+## Important Cashfree flow
+
+The Cashfree App ID/Client Secret are **not** placed in the frontend. The backend creates the Cashfree order and returns only the payment session required by the browser checkout.
+
+Cashfree documents the web flow as: create the order server-side, use the returned Payment Session ID in Cashfree JS checkout, then verify the payment server-side. 
