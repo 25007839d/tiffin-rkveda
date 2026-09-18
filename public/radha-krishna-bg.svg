@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" fill="none">
+<defs><linearGradient id="g" x1="160" y1="120" x2="740" y2="760" gradientUnits="userSpaceOnUse"><stop stop-color="#075b32"/><stop offset=".5" stop-color="#b8892e"/><stop offset="1" stop-color="#f28b22"/></linearGradient></defs>
+<g opacity=".95" stroke="url(#g)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+<path d="M470 250c48-55 108-83 178-84-25 27-42 59-47 96 37-5 72 3 104 23-47 15-79 44-96 88-13 35-16 80-8 134"/>
+<path d="M504 173c-7-45 10-91 51-125 10 46 4 85-18 117"/><path d="M536 88c14 13 27 29 36 48"/><circle cx="559" cy="111" r="10"/>
+<path d="M389 289c-52 20-86 65-94 118-8 51 3 107 36 161 21 34 31 71 28 112"/><path d="M392 291c39-24 86-28 129-11 35 14 61 38 78 72"/><path d="M366 334c-33-4-67 7-94 32 24 1 45 8 62 21"/>
+<path d="M288 552h370"/><circle cx="365" cy="552" r="7"/><circle cx="407" cy="552" r="7"/><circle cx="449" cy="552" r="7"/><circle cx="491" cy="552" r="7"/><circle cx="533" cy="552" r="7"/>
+<path d="M450 680c-55-42-104-38-142-2 43 5 75 24 96 57-50-4-91 10-123 43 57 1 103 17 138 48 31-31 77-47 138-48-33-33-74-47-124-43 21-33 53-52 96-57-38-36-87-40-142 2"/><path d="M419 826c12-25 22-49 31-73 9 24 19 48 31 73"/>
+</g></svg>

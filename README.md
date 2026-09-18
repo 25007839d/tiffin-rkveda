@@ -16,7 +16,7 @@ React + Vite frontend for **RKVeda Tiffin — Vrindavan, Mathura**.
   - +91 81260 37298
   - +91 98730 81994
   - Vrindavan, Mathura, Uttar Pradesh
-  - support@rkveda.in
+  - tiffinrkveda@gmail.com
 - Vrindavan-oriented home, plans, checkout, contact and policy copy.
 - Cashfree whitelisting pages remain available:
   - `/contact`

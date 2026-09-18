@@ -12,7 +12,7 @@ const BUSINESS={
   state:'Uttar Pradesh',
   mobile1:'+91 81260 37298',
   mobile2:'+91 98730 81994',
-  email:'support@rkveda.in'
+  email:'tiffinrkveda@gmail.com'
 };
 
 function Header(){
@@ -22,7 +22,7 @@ function Header(){
 }
 
 function Layout({children}){
-  return <><Header/>{children}<footer><div className="container foot"><div><div className="brand light"><Leaf/><span><b>RKVeda</b> Tiffin<small>Vrindavan • Mathura · {BUSINESS.tagline}</small></span></div><p>Fresh, hygienic North Indian home-style meals prepared for Vrindavan and Mathura customers.</p></div><div><h4>Quick Links</h4><Link to="/menu">Weekly Menu</Link><Link to="/plans">Pricing</Link><Link to="/order">Order Tiffin</Link></div><div><h4>Support</h4><p><Phone size={14}/> <a href="tel:+918126037298">{BUSINESS.mobile1}</a></p><p><Phone size={14}/> <a href="tel:+919873081994">{BUSINESS.mobile2}</a></p><p><MapPin size={14}/> {BUSINESS.city}, {BUSINESS.state}</p><p>{BUSINESS.email}</p><h4>Policies</h4><Link to="/contact">Contact Us</Link><Link to="/terms">Terms & Conditions</Link><Link to="/refund-cancellation">Refunds & Cancellations</Link><Link to="/privacy">Privacy Policy</Link></div></div><div className="copy">© 2026 RKVeda Tiffin · Vrindavan • Mathura · All rights reserved</div></footer></>
+  return <><div className="devotional-bg" aria-hidden="true"/><Header/>{children}<footer><div className="container foot"><div><div className="brand light"><Leaf/><span><b>RKVeda</b> Tiffin<small>Vrindavan • Mathura · {BUSINESS.tagline}</small></span></div><p>Fresh, hygienic North Indian home-style meals prepared for Vrindavan and Mathura customers.</p></div><div><h4>Quick Links</h4><Link to="/menu">Weekly Menu</Link><Link to="/plans">Pricing</Link><Link to="/order">Order Tiffin</Link></div><div><h4>Support</h4><p><Phone size={14}/> <a href="tel:+918126037298">{BUSINESS.mobile1}</a></p><p><Phone size={14}/> <a href="tel:+919873081994">{BUSINESS.mobile2}</a></p><p><MapPin size={14}/> {BUSINESS.city}, {BUSINESS.state}</p><p>{BUSINESS.email}</p><h4>Policies</h4><Link to="/contact">Contact Us</Link><Link to="/terms">Terms & Conditions</Link><Link to="/refund-cancellation">Refunds & Cancellations</Link><Link to="/privacy">Privacy Policy</Link></div></div><div className="copy">© 2026 RKVeda Tiffin · Vrindavan • Mathura · All rights reserved</div></footer></>
 }
 
 function MenuCard({d}){
@@ -44,32 +44,115 @@ function Login(){const[reg,setReg]=useState(false),[f,setF]=useState({}),[e,setE
 function AdminLogin(){const[f,setF]=useState({}),[e,setE]=useState(''),nav=useNavigate();const go=async ev=>{ev.preventDefault();try{const x=await api.post('/auth/admin-login',f);localStorage.setItem('rkveda_token',x.data.token);localStorage.setItem('rkveda_role',x.data.user.role);nav('/admin')}catch(x){setE(x.response?.data?.message||'Login failed')}};return <main className="auth"><form className="form" onSubmit={go}><h2>RKVeda Admin</h2><input placeholder="Admin mobile" inputMode="numeric" required onChange={x=>setF({...f,mobile:x.target.value})}/><input type="password" placeholder="Password" required onChange={x=>setF({...f,password:x.target.value})}/>{e&&<div className="error">{e}</div>}<button className="primary full">Login</button></form></main>}
 
 function Order(){
-  const[p,setP]=useState([]),[a,setA]=useState([]),[f,setF]=useState({}),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+  const[p,setP]=useState([]),[a,setA]=useState([]),[f,setF]=useState({}),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false),[paymentMethod,setPaymentMethod]=useState('online');
   const nav=useNavigate();
-  useEffect(()=>{if(!localStorage.getItem('rkveda_token'))return nav('/login');api.get('/plans').then(x=>setP(x.data));api.get('/customer/profile').then(x=>setA(x.data.addresses||[])).catch(()=>{})},[]);
+  useEffect(()=>{
+    if(!localStorage.getItem('rkveda_token'))return nav('/login');
+    Promise.all([
+      api.get('/plans'),
+      api.get('/customer/profile')
+    ]).then(([plansRes,profileRes])=>{
+      setP(plansRes.data||[]);
+      const addresses=profileRes.data?.addresses||[];
+      setA(addresses);
+      const defaultAddress=addresses.find(x=>Number(x.is_default)===1)||addresses[0];
+      if(defaultAddress)setF(prev=>({...prev,address_id:defaultAddress.id}));
+    }).catch(e=>setMsg(e.response?.data?.message||'Unable to load order details'));
+  },[nav]);
+
   const plan=p.find(x=>x.id===Number(f.plan_id));
+
   const save=async()=>{
+    setMsg('');
+    if(!f.address_line1?.trim()||!f.pincode?.trim())return setMsg('Please enter address and pincode');
+    if(!/^\d{6}$/.test(f.pincode))return setMsg('Please enter a valid 6-digit pincode');
     try{
-      const x=await api.post('/customer/addresses',{address_line1:f.address_line1,area:f.area,pincode:f.pincode,city:'Vrindavan',state:'Uttar Pradesh',is_default:1});
-      setA([...a,{id:x.data.id,address_line1:f.address_line1,area:f.area,pincode:f.pincode,city:'Vrindavan',state:'Uttar Pradesh'}]);
-      setF({...f,address_id:x.data.id});setMsg('Vrindavan delivery address saved');
-    }catch(x){setMsg(x.response?.data?.message||'Address error')}
+      const payload={address_line1:f.address_line1.trim(),area:f.area?.trim()||'',pincode:f.pincode.trim(),city:'Vrindavan',state:'Uttar Pradesh',is_default:1};
+      const x=await api.post('/customer/addresses',payload);
+      const id=x.data?.id||x.data?.address?.id;
+      const saved=x.data?.address||{id,...payload};
+      if(!id)throw new Error('Address was not saved by the server');
+      setA(prev=>[saved,...prev.filter(item=>Number(item.id)!==Number(id))]);
+      setF(prev=>({...prev,address_id:id}));
+      setMsg('Delivery address saved successfully');
+    }catch(x){setMsg(x.response?.data?.message||x.message||'Address could not be saved')}
   };
+
+  const createOrder=async()=>{
+    if(!plan)return setMsg('Please select a plan');
+    if(!f.address_id)return setMsg('Please select or save a delivery address');
+    if(!paymentMethod)return setMsg('Please select a payment method');
+    const o=await api.post('/orders',{
+      plan_id:plan.id,
+      address_id:Number(f.address_id),
+      order_type:plan.duration_days>1?'subscription':'one_time',
+      meal_type:plan.meal_type,
+      quantity:1,
+      payment_method:paymentMethod==='cod'?'cod':'online'
+    });
+    return o.data;
+  };
+
   const pay=async()=>{
     try{
-      if(!plan||!f.address_id)return setMsg('Select plan and delivery address');
-      setBusy(true);setMsg('Creating secure payment...');
-      const o=await api.post('/orders',{plan_id:plan.id,address_id:f.address_id,order_type:plan.duration_days>1?'subscription':'one_time',meal_type:plan.meal_type,quantity:1});
-      localStorage.setItem('rkveda_pending_order_id',String(o.data.orderId));
-      const q=await api.post('/payments/create',{order_id:o.data.orderId});
+      setBusy(true);setMsg('');
+      const o=await createOrder();
+      if(paymentMethod==='cod'){
+        setBusy(false);
+        setMsg('COD order placed successfully. Please keep ₹'+Number(o.amount||plan.price).toLocaleString('en-IN')+' ready at delivery.');
+        setTimeout(()=>nav('/my-orders'),1100);
+        return;
+      }
+      localStorage.setItem('rkveda_pending_order_id',String(o.orderId));
+      setMsg('Creating secure Cashfree payment...');
+      const q=await api.post('/payments/create',{order_id:o.orderId});
       if(!q.data?.payment_session_id)throw new Error('Cashfree payment session was not returned by the server');
       if(typeof window.Cashfree!=='function')throw new Error('Cashfree checkout SDK is not loaded. Please refresh and try again.');
       const cashfree=window.Cashfree({mode:import.meta.env.VITE_CASHFREE_MODE||'sandbox'});
       const result=await cashfree.checkout({paymentSessionId:q.data.payment_session_id});
       if(result?.error){setBusy(false);setMsg(result.error.message||'Cashfree checkout could not be opened');}
-    }catch(x){setBusy(false);setMsg(x.response?.data?.message||x.message||'Payment failed')}
+    }catch(x){setBusy(false);setMsg(x.response?.data?.message||x.message||'Order/payment failed')}
   };
-  return <main className="page container checkout"><div><span className="eyebrow">ORDER TIFFIN • VRINDAVAN</span><h1>Fresh meals, delivered free</h1><p className="lead">₹100 lunch or dinner thali • Dal • Sukhi Sabji • Rice • 4 Roti • Salad • Raita • Disposable Packing</p><label>Choose Plan<select value={f.plan_id||''} onChange={x=>setF({...f,plan_id:x.target.value})}><option value="">Select a plan</option>{p.map(x=><option key={x.id} value={x.id}>{x.name} — ₹{Number(x.price).toLocaleString('en-IN')}</option>)}</select></label><h3>Delivery Address</h3>{a.length>0&&<select value={f.address_id||''} onChange={x=>setF({...f,address_id:x.target.value})}><option value="">Select saved address</option>{a.map(x=><option key={x.id} value={x.id}>{x.address_line1}, {x.area||''}, {x.city||'Vrindavan'}, {x.pincode}</option>)}</select>}<div className="address"><input placeholder="House / Flat / Address line" onChange={x=>setF({...f,address_line1:x.target.value})}/><input placeholder="Area / Colony in Vrindavan" onChange={x=>setF({...f,area:x.target.value})}/><input placeholder="Pincode" inputMode="numeric" maxLength="6" onChange={x=>setF({...f,pincode:x.target.value})}/><p className="fixedplace"><MapPin size={15}/> Vrindavan, Mathura, Uttar Pradesh</p><button className="outline" type="button" onClick={save}>Save Address</button></div></div><aside className="summary"><h2>Order Summary</h2><p>{plan?.name||'—'}</p><p>Delivery <b>FREE</b></p><div className="total">₹{Number(plan?.price||0).toLocaleString('en-IN')}</div>{msg&&<div className={msg.toLowerCase().includes('failed')||msg.toLowerCase().includes('error')?'error':'notice'}>{msg}</div>}<button className="primary full" disabled={busy} onClick={pay}>{busy?'Opening Cashfree...':'Pay Securely with Cashfree'}</button><small className="secure">Secure online payment powered by Cashfree</small></aside></main>
+
+  return <main className="page container checkout">
+    <div>
+      <span className="eyebrow">ORDER TIFFIN • VRINDAVAN</span>
+      <h1>Fresh meals, delivered free</h1>
+      <p className="lead">₹100 lunch or dinner thali • Dal • Sukhi Sabji • Rice • 4 Roti • Salad • Raita • Disposable Packing</p>
+      <label>Choose Plan<select value={f.plan_id||''} onChange={x=>setF({...f,plan_id:x.target.value})}><option value="">Select a plan</option>{p.map(x=><option key={x.id} value={x.id}>{x.name} — ₹{Number(x.price).toLocaleString('en-IN')}</option>)}</select></label>
+      <h3>Delivery Address</h3>
+      {a.length>0&&<select value={f.address_id||''} onChange={x=>setF({...f,address_id:Number(x.target.value)})}><option value="">Select saved address</option>{a.map(x=><option key={x.id} value={x.id}>{x.address_line1}, {x.area||''}, {x.city||'Vrindavan'}, {x.pincode}</option>)}</select>}
+      <div className="address">
+        <input value={f.address_line1||''} placeholder="House / Flat / Address line" onChange={x=>setF({...f,address_line1:x.target.value})}/>
+        <input value={f.area||''} placeholder="Area / Colony in Vrindavan" onChange={x=>setF({...f,area:x.target.value})}/>
+        <input value={f.pincode||''} placeholder="Pincode" inputMode="numeric" maxLength="6" onChange={x=>setF({...f,pincode:x.target.value.replace(/\D/g,'')})}/>
+        <p className="fixedplace"><MapPin size={15}/> Vrindavan, Mathura, Uttar Pradesh</p>
+        <button className="outline" type="button" onClick={save}>Save Address</button>
+      </div>
+
+      <h3 className="payment-title">Payment Method</h3>
+      <div className="payment-options">
+        <label className={'payment-option '+(paymentMethod==='cod'?'selected':'')}>
+          <input type="radio" name="payment" value="cod" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')}/>
+          <span><b>Cash on Delivery</b><small>Pay cash when your tiffin is delivered</small></span>
+        </label>
+        <label className={'payment-option '+(paymentMethod==='online'?'selected':'')}>
+          <input type="radio" name="payment" value="online" checked={paymentMethod==='online'} onChange={()=>setPaymentMethod('online')}/>
+          <span><b>Pay Online</b><small>Secure UPI / Card / Net Banking via Cashfree</small></span>
+        </label>
+      </div>
+    </div>
+    <aside className="summary">
+      <h2>Order Summary</h2>
+      <p>{plan?.name||'—'}</p>
+      <p>Delivery <b>FREE</b></p>
+      <div className="total">₹{Number(plan?.price||0).toLocaleString('en-IN')}</div>
+      {paymentMethod&&<div className="selected-method">Payment: <b>{paymentMethod==='cod'?'Cash on Delivery':'Online Payment'}</b></div>}
+      {msg&&<div className={/failed|error|could not|unable|invalid|not saved/i.test(msg)?'error':'notice'}>{msg}</div>}
+      <button className="primary full" disabled={busy} onClick={pay}>{busy?(paymentMethod==='cod'?'Placing Order...':'Opening Cashfree...'):(paymentMethod==='cod'?'Place COD Order':'Pay Online Securely')}</button>
+      {paymentMethod==='online'&&<small className="secure">Secure online payment powered by Cashfree</small>}
+    </aside>
+  </main>
 }
 
 function PaymentCallback(){
