@@ -1,5 +1,16 @@
 # RKVeda Tiffin Frontend
 
+## Latest frontend fixes (1.3.0)
+
+- Admin link is always visible in the main navigation and opens `/admin/login`.
+- `/admin-login` is retained as a backward-compatible redirect to `/admin/login`.
+- Admin dashboard is protected by the stored `admin` / `super_admin` role.
+- Logged-in customers see `My Orders` in the navigation.
+- `My Orders` supports both array and `{ orders: [...] }` API responses.
+- COD/online order creation accepts common backend order-ID response shapes (`orderId`, `order_id`, `id`, or nested `order`).
+- COD order success redirects the customer to `My Orders`.
+
+
 React + Vite frontend for **RKVeda Tiffin — Vrindavan, Mathura**.
 
 ## Current updates

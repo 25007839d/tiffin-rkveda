@@ -1,5 +1,5 @@
 import React,{useEffect,useState}from'react';
-import{Routes,Route,Link,useNavigate}from'react-router-dom';
+import{Routes,Route,Link,useNavigate,Navigate}from'react-router-dom';
 import{Leaf,ShoppingBag,LogIn,LogOut,LayoutDashboard,CheckCircle2,Menu as MenuIcon,Phone,MapPin}from'lucide-react';
 import api from'./api';
 
@@ -16,9 +16,9 @@ const BUSINESS={
 };
 
 function Header(){
-  const nav=useNavigate(),[o,setO]=useState(false),token=localStorage.getItem('rkveda_token'),isAdmin=['admin','super_admin'].includes(localStorage.getItem('rkveda_role'));
+  const nav=useNavigate(),[o,setO]=useState(false),token=localStorage.getItem('rkveda_token'),role=localStorage.getItem('rkveda_role'),isAdmin=['admin','super_admin'].includes(role);
   const logout=()=>{localStorage.clear();nav('/')};
-  return <header><div className="container nav"><Link className="brand" to="/"><Leaf/><span><b>RKVeda</b> Tiffin<small>Vrindavan • Mathura · {BUSINESS.tagline}</small></span></Link><button className="mob" onClick={()=>setO(!o)}><MenuIcon/></button><nav className={o?'open':''}><Link to="/">Home</Link><Link to="/menu">Menu</Link><Link to="/plans">Plans</Link><Link to="/how-it-works">How It Works</Link>{isAdmin&&<Link to="/admin"><LayoutDashboard size={16}/> Admin</Link>}{token?<button className="link" onClick={logout}><LogOut size={16}/> Logout</button>:<Link className="outline" to="/login"><LogIn size={16}/> Login</Link>}<Link className="primary" to="/order"><ShoppingBag size={16}/> Order Now</Link></nav></div></header>
+  return <header><div className="container nav"><Link className="brand" to="/"><Leaf/><span><b>RKVeda</b> Tiffin<small>Vrindavan • Mathura · {BUSINESS.tagline}</small></span></Link><button className="mob" onClick={()=>setO(!o)}><MenuIcon/></button><nav className={o?'open':''}><Link to="/">Home</Link><Link to="/menu">Menu</Link><Link to="/plans">Plans</Link><Link to="/how-it-works">How It Works</Link>{isAdmin?<Link to="/admin"><LayoutDashboard size={16}/> Admin</Link>:<Link className="link" to="/admin/login"><LayoutDashboard size={16}/> Admin</Link>}{token&&<Link className="link" to="/my-orders">My Orders</Link>}{token?<button className="link" onClick={logout}><LogOut size={16}/> Logout</button>:<Link className="outline" to="/login"><LogIn size={16}/> Login</Link>}<Link className="primary" to="/order"><ShoppingBag size={16}/> Order Now</Link></nav></div></header>
 }
 
 function Layout({children}){
@@ -100,17 +100,18 @@ function Order(){
     try{
       setBusy(true);setMsg('');
       const o=await createOrder();
+      const orderId=Number(o?.orderId ?? o?.order_id ?? o?.id ?? o?.order?.id ?? o?.order?.orderId);
+      if(!orderId)throw new Error('Order was created but the server did not return an order ID. Please refresh My Orders and check the order before retrying.');
       if(paymentMethod==='cod'){
-        if(!o?.orderId)throw new Error('COD order was not created by the server');
         setBusy(false);
-        const payable=Number(o.amount ?? o.total_amount ?? plan.price);
+        const payable=Number(o?.amount ?? o?.total_amount ?? o?.order?.amount ?? o?.order?.total_amount ?? plan.price);
         setMsg('COD order placed successfully. Please keep ₹'+payable.toLocaleString('en-IN')+' ready at delivery.');
         setTimeout(()=>nav('/my-orders'),1100);
         return;
       }
-      localStorage.setItem('rkveda_pending_order_id',String(o.orderId));
+      localStorage.setItem('rkveda_pending_order_id',String(orderId));
       setMsg('Creating secure Cashfree payment...');
-      const q=await api.post('/payments/create',{order_id:o.orderId});
+      const q=await api.post('/payments/create',{order_id:orderId});
       if(!q.data?.payment_session_id)throw new Error('Cashfree payment session was not returned by the server');
       if(typeof window.Cashfree!=='function')throw new Error('Cashfree checkout SDK is not loaded. Please refresh and try again.');
       const cashfree=window.Cashfree({mode:import.meta.env.VITE_CASHFREE_MODE||'sandbox'});
@@ -182,14 +183,17 @@ function PaymentCallback(){
   return <main className="auth"><div className="form"><h2>Cashfree Payment</h2><p>{status}</p>{error&&<div className="error">{error}</div>}<div className="actions"><Link className="primary" to="/my-orders">My Orders</Link><Link className="outline" to="/">Home</Link></div></div></main>
 }
 
-function MyOrders(){const[o,setO]=useState([]);useEffect(()=>{api.get('/customer/orders').then(x=>setO(x.data)).catch(()=>{})},[]);return <main className="page container"><h1>My Orders</h1>{o.map(x=><div className="order" key={x.id}><b>{x.order_number}</b><span>{x.plan_name}</span><span>₹{Number(x.total_amount).toLocaleString('en-IN')}</span><span>{x.payment_status}</span><span>{x.order_status}</span></div>)}</main>}
+function MyOrders(){const[o,setO]=useState([]),[e,setE]=useState(''),nav=useNavigate();useEffect(()=>{if(!localStorage.getItem('rkveda_token')){nav('/login');return}api.get('/customer/orders').then(x=>setO(Array.isArray(x.data)?x.data:(x.data?.orders||[]))).catch(x=>setE(x.response?.data?.message||'Unable to load your orders'))},[nav]);return <main className="page container"><span className="eyebrow">RKVEDA TIFFIN • VRINDAVAN</span><h1>My Orders</h1><p className="lead">Track your tiffin orders and payment status.</p>{e&&<div className="error">{e}</div>}{!e&&!o.length&&<div className="notice">No orders found yet. <Link to="/order"><b>Place your first order →</b></Link></div>}{o.map(x=><div className="order" key={x.id}><b>{x.order_number}</b><span>{x.plan_name}</span><span>₹{Number(x.total_amount).toLocaleString('en-IN')}</span><span>{x.payment_status}</span><span>{x.order_status}</span></div>)}</main>}
 
 function Admin(){
-  const[t,setT]=useState('dashboard'),[d,setD]=useState(null),[rows,setRows]=useState([]),[menu,setMenu]=useState([]),[plans,setPlans]=useState([]);
-  const load=async x=>{setT(x);const u={dashboard:'/admin/dashboard',orders:'/admin/orders',customers:'/admin/customers',payments:'/admin/payments',subscriptions:'/admin/subscriptions',menu:'/admin/menu',plans:'/admin/plans'};const r=await api.get(u[x]);if(x==='dashboard')setD(r.data);else if(x==='menu')setMenu(r.data);else if(x==='plans')setPlans(r.data);else setRows(r.data)};
-  useEffect(()=>load('dashboard'),[]);
+  const[t,setT]=useState('dashboard'),[d,setD]=useState(null),[rows,setRows]=useState([]),[menu,setMenu]=useState([]),[plans,setPlans]=useState([]),[e,setE]=useState('');
+  const nav=useNavigate();
+  const isAdmin=['admin','super_admin'].includes(localStorage.getItem('rkveda_role'));
+  const load=async x=>{setT(x);setE('');const u={dashboard:'/admin/dashboard',orders:'/admin/orders',customers:'/admin/customers',payments:'/admin/payments',subscriptions:'/admin/subscriptions',menu:'/admin/menu',plans:'/admin/plans'};try{const r=await api.get(u[x]);if(x==='dashboard')setD(r.data);else if(x==='menu')setMenu(r.data||[]);else if(x==='plans')setPlans(r.data||[]);else setRows(r.data||[])}catch(err){if(err.response?.status===401||err.response?.status===403){localStorage.removeItem('rkveda_token');localStorage.removeItem('rkveda_role');nav('/admin/login')}else setE(err.response?.data?.message||'Unable to load admin data')}};
+  useEffect(()=>{if(!isAdmin){nav('/admin/login');return}load('dashboard')},[]);
   const save=async x=>{const fd=new FormData();['lunch_dal','lunch_dry_sabzi','lunch_rice','lunch_salad','lunch_raita','dinner_dal','dinner_dry_sabzi','dinner_rice','dinner_salad','dinner_raita'].forEach(k=>fd.append(k,x[k]||''));fd.append('active','1');if(x.lunch_file)fd.append('lunch_image',x.lunch_file);if(x.dinner_file)fd.append('dinner_image',x.dinner_file);await api.put('/admin/menu/'+x.id,fd);load('menu')};
-  return <main className="admin"><div className="container adminlayout"><aside className="sidebar"><h3>RKVeda Admin</h3>{['dashboard','orders','customers','menu','plans','subscriptions','payments'].map(x=><button className={t===x?'active':''} onClick={()=>load(x)} key={x}>{x}</button>)}</aside><section><div className="adminhead"><h1>{t}</h1><Link to="/">View Site</Link></div>{t==='dashboard'&&d&&<div className="stats">{[['Orders',d.orders],['Lunch',d.lunch],['Dinner',d.dinner],['Revenue','₹'+Number(d.revenue).toLocaleString('en-IN')],['Customers',d.customers],['Subscriptions',d.subscriptions],['Pending',d.pendingPayments]].map(x=><div className="stat" key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></div>)}</div>}{['orders','customers','payments','subscriptions','plans'].includes(t)&&<Table rows={t==='plans'?plans:rows} cols={t==='orders'?['order_number','customer_name','mobile','plan_name','total_amount','payment_status','order_status']:t==='customers'?['name','mobile','orders_count','total_spent']:t==='payments'?['order_number','customer_name','amount','gateway_payment_id','method','status']:t==='subscriptions'?['subscription_number','customer_name','mobile','plan_name','start_date','end_date','status']:['name','duration_days','meal_type','price','active']}/>} {t==='menu'&&menu.map(x=><MenuEditor d={x} save={save} key={x.id}/>)}</section></div></main>
+  if(!isAdmin)return null;
+  return <main className="admin"><div className="container adminlayout"><aside className="sidebar"><h3>RKVeda Admin</h3>{['dashboard','orders','customers','menu','plans','subscriptions','payments'].map(x=><button className={t===x?'active':''} onClick={()=>load(x)} key={x}>{x}</button>)}</aside><section><div className="adminhead"><h1>{t}</h1><Link to="/">View Site</Link></div>{e&&<div className="error">{e}</div>}{t==='dashboard'&&d&&<div className="stats">{[['Orders',d.orders],['Lunch',d.lunch],['Dinner',d.dinner],['Revenue','₹'+Number(d.revenue).toLocaleString('en-IN')],['Customers',d.customers],['Subscriptions',d.subscriptions],['Pending',d.pendingPayments]].map(x=><div className="stat" key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></div>)}</div>}{['orders','customers','payments','subscriptions','plans'].includes(t)&&<Table rows={t==='plans'?plans:rows} cols={t==='orders'?['order_number','customer_name','mobile','plan_name','total_amount','payment_status','order_status']:t==='customers'?['name','mobile','orders_count','total_spent']:t==='payments'?['order_number','customer_name','amount','gateway_payment_id','method','status']:t==='subscriptions'?['subscription_number','customer_name','mobile','plan_name','start_date','end_date','status']:['name','duration_days','meal_type','price','active']}/>} {t==='menu'&&menu.map(x=><MenuEditor d={x} save={save} key={x.id}/>)}</section></div></main>
 }
 
 function MenuEditor({d,save}){const[x,setX]=useState(d);const f=['lunch_dal','lunch_dry_sabzi','lunch_rice','lunch_salad','lunch_raita','dinner_dal','dinner_dry_sabzi','dinner_rice','dinner_salad','dinner_raita'];return <div className="editor"><h3>{d.day_name}</h3><div className="editgrid">{f.map(k=><label key={k}>{k.replaceAll('_',' ')}<input value={x[k]||''} onChange={e=>setX({...x,[k]:e.target.value})}/></label>)}</div><div className="files"><label>Lunch image<input type="file" accept="image/*" onChange={e=>setX({...x,lunch_file:e.target.files[0]})}/></label><label>Dinner image<input type="file" accept="image/*" onChange={e=>setX({...x,dinner_file:e.target.files[0]})}/></label></div><button className="primary" onClick={()=>save(x)}>Save {d.day_name}</button></div>}
@@ -207,4 +211,4 @@ function PolicyPage({type}){
 }
 
 function Simple({title,text}){return <main className="page container"><span className="eyebrow">RKVEDA TIFFIN • VRINDAVAN</span><h1>{title}</h1><p className="lead">{text}</p></main>}
-export default function App(){return <Layout><Routes><Route path="/" element={<Home/>}/><Route path="/menu" element={<Menu/>}/><Route path="/plans" element={<Plans/>}/><Route path="/login" element={<Login/>}/><Route path="/admin-login" element={<AdminLogin/>}/><Route path="/order" element={<Order/>}/><Route path="/payment/callback" element={<PaymentCallback/>}/><Route path="/my-orders" element={<MyOrders/>}/><Route path="/admin" element={<Admin/>}/><Route path="/how-it-works" element={<Simple title="How It Works" text="Choose lunch, dinner or a subscription, add your Vrindavan delivery address, pay securely with Cashfree and receive your fresh disposable thali."/>}/><Route path="/contact" element={<PolicyPage type="contact"/>}/><Route path="/terms" element={<PolicyPage type="terms"/>}/><Route path="/refund-cancellation" element={<PolicyPage type="refund"/>}/><Route path="/privacy" element={<PolicyPage type="privacy"/>}/></Routes></Layout>}
+export default function App(){return <Layout><Routes><Route path="/" element={<Home/>}/><Route path="/menu" element={<Menu/>}/><Route path="/plans" element={<Plans/>}/><Route path="/login" element={<Login/>}/><Route path="/admin-login" element={<Navigate to="/admin/login" replace/>}/><Route path="/admin/login" element={<AdminLogin/>}/><Route path="/order" element={<Order/>}/><Route path="/payment/callback" element={<PaymentCallback/>}/><Route path="/my-orders" element={<MyOrders/>}/><Route path="/admin" element={<Admin/>}/><Route path="/how-it-works" element={<Simple title="How It Works" text="Choose lunch, dinner or a subscription, add your Vrindavan delivery address, pay securely with Cashfree and receive your fresh disposable thali."/>}/><Route path="/contact" element={<PolicyPage type="contact"/>}/><Route path="/terms" element={<PolicyPage type="terms"/>}/><Route path="/refund-cancellation" element={<PolicyPage type="refund"/>}/><Route path="/privacy" element={<PolicyPage type="privacy"/>}/></Routes></Layout>}
