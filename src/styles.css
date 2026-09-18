@@ -24,3 +24,21 @@ body{background:#fffdf8;position:relative}
 .payment-option small{color:var(--muted);line-height:1.4}
 .selected-method{font-size:13px;background:#fff;border:1px solid var(--line);padding:10px 12px;border-radius:8px;margin:10px 0}
 @media(max-width:900px){.payment-options{grid-template-columns:1fr}.devotional-bg{background-position:100% 45%;background-size:600px;opacity:.035}}
+
+.admincards{display:grid;gap:12px}
+.admincard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+.admincardtop{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+.admincardtop b{font-size:15px}.admincardtop strong{color:var(--g);font-size:18px}.admincardtop small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.adminfields{display:grid;grid-template-columns:1fr 1.5fr 1fr 1fr;gap:14px}
+.adminfields>div{min-width:0}.adminfields span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}.adminfields b{font-size:12px;font-weight:600;overflow-wrap:anywhere}
+.adminfields select{width:100%;padding:8px;border:1px solid #d6ded7;border-radius:7px;background:#fff;text-transform:capitalize}
+.callbtn{display:inline-flex;align-items:center;gap:5px;color:var(--g);font-size:11px;font-weight:700;margin-left:8px}
+.adminactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.smallbtn{padding:8px 11px;font-size:12px}
+.danger{border:1px solid #d9a5a5;background:#fff4f4;color:#a21c1c;padding:8px 11px;border-radius:9px;font-weight:700;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.compact{margin-bottom:8px}
+.compact label{font-size:11px}
+.compact input,.compact select{margin-top:4px}
+.customerfields{grid-template-columns:1fr 1fr}
+@media(max-width:900px){.adminfields{grid-template-columns:1fr 1fr}.customerfields{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.adminfields{grid-template-columns:1fr}.admincardtop{flex-direction:column}.adminactions>*{flex:1}.adminactions a{min-width:130px}.customerfields{grid-template-columns:1fr}}

@@ -51,3 +51,10 @@ Change to `production` only when the Cashfree production credentials/configurati
 The Cashfree App ID/Client Secret are **not** placed in the frontend. The backend creates the Cashfree order and returns only the payment session required by the browser checkout.
 
 Cashfree documents the web flow as: create the order server-side, use the returned Payment Session ID in Cashfree JS checkout, then verify the payment server-side. 
+
+
+## v1.4.0 Admin management
+- Admin order status update, call customer, and delete order.
+- Admin customer update, call, and deactivate (soft delete).
+- Admin plan inline update for name, duration, meal type, price, description and active state.
+- Backend endpoints required: PUT/DELETE `/admin/orders/:id`, PUT/DELETE `/admin/customers/:id`.

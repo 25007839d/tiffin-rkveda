@@ -1,6 +1,6 @@
 import React,{useEffect,useState}from'react';
 import{Routes,Route,Link,useNavigate,Navigate}from'react-router-dom';
-import{Leaf,ShoppingBag,LogIn,LogOut,LayoutDashboard,CheckCircle2,Menu as MenuIcon,Phone,MapPin}from'lucide-react';
+import{Leaf,ShoppingBag,LogIn,LogOut,LayoutDashboard,CheckCircle2,Menu as MenuIcon,Phone,MapPin,Pencil,Trash2,Save,X}from'lucide-react';
 import api from'./api';
 
 const mediaUrl=(url)=>{const u=String(url||'');return u.startsWith('http')?u:`${String(import.meta.env.VITE_API_ORIGIN||'https://tiffin-api.rkveda.in').replace(/\/$/,'')}${u.startsWith('/')?'':'/'}${u}`};
@@ -186,14 +186,128 @@ function PaymentCallback(){
 function MyOrders(){const[o,setO]=useState([]),[e,setE]=useState(''),nav=useNavigate();useEffect(()=>{if(!localStorage.getItem('rkveda_token')){nav('/login');return}api.get('/customer/orders').then(x=>setO(Array.isArray(x.data)?x.data:(x.data?.orders||[]))).catch(x=>setE(x.response?.data?.message||'Unable to load your orders'))},[nav]);return <main className="page container"><span className="eyebrow">RKVEDA TIFFIN • VRINDAVAN</span><h1>My Orders</h1><p className="lead">Track your tiffin orders and payment status.</p>{e&&<div className="error">{e}</div>}{!e&&!o.length&&<div className="notice">No orders found yet. <Link to="/order"><b>Place your first order →</b></Link></div>}{o.map(x=><div className="order" key={x.id}><b>{x.order_number}</b><span>{x.plan_name}</span><span>₹{Number(x.total_amount).toLocaleString('en-IN')}</span><span>{x.payment_status}</span><span>{x.order_status}</span></div>)}</main>}
 
 function Admin(){
-  const[t,setT]=useState('dashboard'),[d,setD]=useState(null),[rows,setRows]=useState([]),[menu,setMenu]=useState([]),[plans,setPlans]=useState([]),[e,setE]=useState('');
+  const[t,setT]=useState('dashboard'),[d,setD]=useState(null),[rows,setRows]=useState([]),[menu,setMenu]=useState([]),[plans,setPlans]=useState([]),[e,setE]=useState(''),[notice,setNotice]=useState('');
   const nav=useNavigate();
   const isAdmin=['admin','super_admin'].includes(localStorage.getItem('rkveda_role'));
-  const load=async x=>{setT(x);setE('');const u={dashboard:'/admin/dashboard',orders:'/admin/orders',customers:'/admin/customers',payments:'/admin/payments',subscriptions:'/admin/subscriptions',menu:'/admin/menu',plans:'/admin/plans'};try{const r=await api.get(u[x]);if(x==='dashboard')setD(r.data);else if(x==='menu')setMenu(r.data||[]);else if(x==='plans')setPlans(r.data||[]);else setRows(r.data||[])}catch(err){if(err.response?.status===401||err.response?.status===403){localStorage.removeItem('rkveda_token');localStorage.removeItem('rkveda_role');nav('/admin/login')}else setE(err.response?.data?.message||'Unable to load admin data')}};
+  const load=async x=>{
+    setT(x);setE('');setNotice('');
+    const u={dashboard:'/admin/dashboard',orders:'/admin/orders',customers:'/admin/customers',payments:'/admin/payments',subscriptions:'/admin/subscriptions',menu:'/admin/menu',plans:'/admin/plans'};
+    try{
+      const r=await api.get(u[x]);
+      if(x==='dashboard')setD(r.data);
+      else if(x==='menu')setMenu(r.data||[]);
+      else if(x==='plans')setPlans(r.data||[]);
+      else setRows(r.data||[]);
+    }catch(err){
+      if(err.response?.status===401||err.response?.status===403){
+        localStorage.removeItem('rkveda_token');localStorage.removeItem('rkveda_role');nav('/admin/login');
+      }else setE(err.response?.data?.message||'Unable to load admin data');
+    }
+  };
   useEffect(()=>{if(!isAdmin){nav('/admin/login');return}load('dashboard')},[]);
-  const save=async x=>{const fd=new FormData();['lunch_dal','lunch_dry_sabzi','lunch_rice','lunch_salad','lunch_raita','dinner_dal','dinner_dry_sabzi','dinner_rice','dinner_salad','dinner_raita'].forEach(k=>fd.append(k,x[k]||''));fd.append('active','1');if(x.lunch_file)fd.append('lunch_image',x.lunch_file);if(x.dinner_file)fd.append('dinner_image',x.dinner_file);await api.put('/admin/menu/'+x.id,fd);load('menu')};
+  const saveMenu=async x=>{
+    try{
+      const fd=new FormData();
+      ['lunch_dal','lunch_dry_sabzi','lunch_rice','lunch_salad','lunch_raita','dinner_dal','dinner_dry_sabzi','dinner_rice','dinner_salad','dinner_raita'].forEach(k=>fd.append(k,x[k]||''));
+      fd.append('active','1');
+      if(x.lunch_file)fd.append('lunch_image',x.lunch_file);
+      if(x.dinner_file)fd.append('dinner_image',x.dinner_file);
+      await api.put('/admin/menu/'+x.id,fd);setNotice('Menu updated successfully');load('menu');
+    }catch(err){setE(err.response?.data?.message||'Menu update failed')}
+  };
+  const updateOrder=async(id,status)=>{
+    try{await api.patch('/admin/orders/'+id+'/status',{status});setNotice('Order status updated');load('orders')}
+    catch(err){setE(err.response?.data?.message||'Order update failed')}
+  };
+  const deleteOrder=async(id)=>{
+    if(!window.confirm('Delete this order permanently? Payment/subscription records linked to it may also be affected.'))return;
+    try{await api.delete('/admin/orders/'+id);setNotice('Order deleted');load('orders')}
+    catch(err){setE(err.response?.data?.message||'Order could not be deleted')}
+  };
+  const updateCustomer=async(x)=>{
+    try{await api.put('/admin/customers/'+x.id,{name:x.name,mobile:x.mobile,email:x.email});setNotice('Customer updated');load('customers')}
+    catch(err){setE(err.response?.data?.message||'Customer update failed')}
+  };
+  const deleteCustomer=async(id)=>{
+    if(!window.confirm('Deactivate this customer? Their order history will be preserved.'))return;
+    try{await api.delete('/admin/customers/'+id);setNotice('Customer deactivated');load('customers')}
+    catch(err){setE(err.response?.data?.message||'Customer could not be deactivated')}
+  };
+  const updatePlan=async(x)=>{
+    try{
+      await api.put('/admin/plans/'+x.id,{name:x.name,duration_days:Number(x.duration_days),meal_type:x.meal_type,price:Number(x.price),description:x.description||'',active:Number(x.active)?1:0,sort_order:Number(x.sort_order)||0});
+      setNotice('Plan updated successfully');load('plans');
+    }catch(err){setE(err.response?.data?.message||'Plan update failed')}
+  };
   if(!isAdmin)return null;
-  return <main className="admin"><div className="container adminlayout"><aside className="sidebar"><h3>RKVeda Admin</h3>{['dashboard','orders','customers','menu','plans','subscriptions','payments'].map(x=><button className={t===x?'active':''} onClick={()=>load(x)} key={x}>{x}</button>)}</aside><section><div className="adminhead"><h1>{t}</h1><Link to="/">View Site</Link></div>{e&&<div className="error">{e}</div>}{t==='dashboard'&&d&&<div className="stats">{[['Orders',d.orders],['Lunch',d.lunch],['Dinner',d.dinner],['Revenue','₹'+Number(d.revenue).toLocaleString('en-IN')],['Customers',d.customers],['Subscriptions',d.subscriptions],['Pending',d.pendingPayments]].map(x=><div className="stat" key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></div>)}</div>}{['orders','customers','payments','subscriptions','plans'].includes(t)&&<Table rows={t==='plans'?plans:rows} cols={t==='orders'?['order_number','customer_name','mobile','plan_name','total_amount','payment_status','order_status']:t==='customers'?['name','mobile','orders_count','total_spent']:t==='payments'?['order_number','customer_name','amount','gateway_payment_id','method','status']:t==='subscriptions'?['subscription_number','customer_name','mobile','plan_name','start_date','end_date','status']:['name','duration_days','meal_type','price','active']}/>} {t==='menu'&&menu.map(x=><MenuEditor d={x} save={save} key={x.id}/>)}</section></div></main>
+  return <main className="admin"><div className="container adminlayout">
+    <aside className="sidebar">
+      <h3>RKVeda Admin</h3>
+      {['dashboard','orders','customers','menu','plans','subscriptions','payments'].map(x=><button className={t===x?'active':''} onClick={()=>load(x)} key={x}>{x}</button>)}
+    </aside>
+    <section>
+      <div className="adminhead"><h1>{t}</h1><Link to="/">View Site</Link></div>
+      {e&&<div className="error">{e}</div>}{notice&&<div className="notice">{notice}</div>}
+      {t==='dashboard'&&d&&<div className="stats">{[['Orders',d.orders],['Lunch',d.lunch],['Dinner',d.dinner],['Revenue','₹'+Number(d.revenue).toLocaleString('en-IN')],['Customers',d.customers],['Subscriptions',d.subscriptions],['Pending',d.pendingPayments]].map(x=><div className="stat" key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></div>)}</div>}
+      {t==='orders'&&<AdminOrders rows={rows} updateOrder={updateOrder} deleteOrder={deleteOrder}/>}
+      {t==='customers'&&<AdminCustomers rows={rows} updateCustomer={updateCustomer} deleteCustomer={deleteCustomer}/>}
+      {t==='plans'&&<AdminPlans rows={plans} updatePlan={updatePlan}/>}
+      {['payments','subscriptions'].includes(t)&&<Table rows={rows} cols={t==='payments'?['order_number','customer_name','amount','gateway_payment_id','method','status']:['subscription_number','customer_name','mobile','plan_name','start_date','end_date','status']}/>}
+      {t==='menu'&&menu.map(x=><MenuEditor d={x} save={saveMenu} key={x.id}/>)}
+    </section>
+  </div></main>
+}
+
+const ORDER_STATUSES=['pending','confirmed','preparing','out_for_delivery','delivered','cancelled'];
+
+function AdminOrders({rows,updateOrder,deleteOrder}){
+  return <div className="admincards">{!rows.length&&<div className="notice">No orders found.</div>}{rows.map(r=><div className="admincard" key={r.id}>
+    <div className="admincardtop"><div><b>{r.order_number}</b><small>{r.plan_name||'Order'} · {r.created_at?new Date(r.created_at).toLocaleString('en-IN'):''}</small></div><strong>₹{Number(r.total_amount||0).toLocaleString('en-IN')}</strong></div>
+    <div className="adminfields">
+      <div><span>Customer</span><b>{r.customer_name||'—'}</b><a className="callbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call</a></div>
+      <div><span>Delivery</span><b>{[r.address_line1,r.area,r.city,r.pincode].filter(Boolean).join(', ')||'—'}</b></div>
+      <div><span>Payment</span><b>{r.payment_status||'—'}</b></div>
+      <div><span>Order Status</span><select value={r.order_status||'pending'} onChange={ev=>updateOrder(r.id,ev.target.value)}>{ORDER_STATUSES.map(s=><option value={s} key={s}>{s.replaceAll('_',' ')}</option>)}</select></div>
+    </div>
+    <div className="adminactions"><a className="outline smallbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call Customer</a><button className="danger smallbtn" onClick={()=>deleteOrder(r.id)}><Trash2 size={14}/> Delete</button></div>
+  </div>)}</div>
+}
+
+function AdminCustomers({rows,updateCustomer,deleteCustomer}){
+  const[edit,setEdit]=useState(null);
+  return <div className="admincards">{!rows.length&&<div className="notice">No customers found.</div>}{rows.map(r=>edit?.id===r.id
+    ? <div className="admincard" key={r.id}>
+        <div className="editgrid compact"><label>Name<input value={edit.name||''} onChange={e=>setEdit({...edit,name:e.target.value})}/></label><label>Mobile<input value={edit.mobile||''} onChange={e=>setEdit({...edit,mobile:e.target.value})}/></label><label>Email<input value={edit.email||''} onChange={e=>setEdit({...edit,email:e.target.value})}/></label></div>
+        <div className="adminactions"><button className="primary smallbtn" onClick={async()=>{await updateCustomer(edit);setEdit(null)}}><Save size={14}/> Save</button><button className="outline smallbtn" onClick={()=>setEdit(null)}><X size={14}/> Cancel</button></div>
+      </div>
+    : <div className="admincard" key={r.id}>
+        <div className="admincardtop"><div><b>{r.name}</b><small>{r.email||'No email'} · {Number(r.active)===0?'Inactive':'Active'}</small></div><strong>{r.orders_count||0} orders</strong></div>
+        <div className="adminfields customerfields"><div><span>Mobile</span><b>{r.mobile}</b></div><div><span>Total Spent</span><b>₹{Number(r.total_spent||0).toLocaleString('en-IN')}</b></div></div>
+        <div className="adminactions"><a className="outline smallbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call</a><button className="outline smallbtn" onClick={()=>setEdit({...r})}><Pencil size={14}/> Update</button><button className="danger smallbtn" onClick={()=>deleteCustomer(r.id)}><Trash2 size={14}/> Delete</button></div>
+      </div>
+  )}</div>
+}
+
+function AdminPlans({rows,updatePlan}){
+  const[edit,setEdit]=useState(null);
+  return <div className="admincards">{!rows.length&&<div className="notice">No plans found.</div>}{rows.map(r=>edit?.id===r.id
+    ? <div className="admincard" key={r.id}>
+        <div className="editgrid compact">
+          <label>Name<input value={edit.name||''} onChange={e=>setEdit({...edit,name:e.target.value})}/></label>
+          <label>Duration (days)<input type="number" min="1" value={edit.duration_days||1} onChange={e=>setEdit({...edit,duration_days:e.target.value})}/></label>
+          <label>Meal type<select value={edit.meal_type||'lunch'} onChange={e=>setEdit({...edit,meal_type:e.target.value})}><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="both">Lunch + Dinner</option></select></label>
+          <label>Price<input type="number" min="0" step="0.01" value={edit.price||0} onChange={e=>setEdit({...edit,price:e.target.value})}/></label>
+          <label>Description<input value={edit.description||''} onChange={e=>setEdit({...edit,description:e.target.value})}/></label>
+          <label>Active<select value={Number(edit.active)?1:0} onChange={e=>setEdit({...edit,active:Number(e.target.value)})}><option value="1">Active</option><option value="0">Inactive</option></select></label>
+        </div>
+        <div className="adminactions"><button className="primary smallbtn" onClick={async()=>{await updatePlan(edit);setEdit(null)}}><Save size={14}/> Save Plan</button><button className="outline smallbtn" onClick={()=>setEdit(null)}><X size={14}/> Cancel</button></div>
+      </div>
+    : <div className="admincard" key={r.id}>
+        <div className="admincardtop"><div><b>{r.name}</b><small>{r.duration_days} days · {r.meal_type} · {Number(r.active)?'Active':'Inactive'}</small></div><strong>₹{Number(r.price||0).toLocaleString('en-IN')}</strong></div>
+        <div className="adminfields"><div><span>Description</span><b>{r.description||'—'}</b></div><div><span>Sort Order</span><b>{r.sort_order??0}</b></div></div>
+        <div className="adminactions"><button className="outline smallbtn" onClick={()=>setEdit({...r})}><Pencil size={14}/> Update Plan</button></div>
+      </div>
+  )}</div>
 }
 
 function MenuEditor({d,save}){const[x,setX]=useState(d);const f=['lunch_dal','lunch_dry_sabzi','lunch_rice','lunch_salad','lunch_raita','dinner_dal','dinner_dry_sabzi','dinner_rice','dinner_salad','dinner_raita'];return <div className="editor"><h3>{d.day_name}</h3><div className="editgrid">{f.map(k=><label key={k}>{k.replaceAll('_',' ')}<input value={x[k]||''} onChange={e=>setX({...x,[k]:e.target.value})}/></label>)}</div><div className="files"><label>Lunch image<input type="file" accept="image/*" onChange={e=>setX({...x,lunch_file:e.target.files[0]})}/></label><label>Dinner image<input type="file" accept="image/*" onChange={e=>setX({...x,dinner_file:e.target.files[0]})}/></label></div><button className="primary" onClick={()=>save(x)}>Save {d.day_name}</button></div>}
