@@ -42,3 +42,50 @@ body{background:#fffdf8;position:relative}
 .customerfields{grid-template-columns:1fr 1fr}
 @media(max-width:900px){.adminfields{grid-template-columns:1fr 1fr}.customerfields{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.adminfields{grid-template-columns:1fr}.admincardtop{flex-direction:column}.adminactions>*{flex:1}.adminactions a{min-width:130px}.customerfields{grid-template-columns:1fr}}
+
+/* v1.5 mobile + operations polish */
+.heroimage{overflow:hidden;min-height:350px}
+.heroimage img{width:100%;height:100%;min-height:350px;object-fit:cover;display:block}
+.heroimage strong,.heroimage small{z-index:1}
+.menu-skeleton{display:grid;gap:10px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:23px}
+.menu-skeleton div{height:18px;border-radius:8px;background:#eef3ee;animation:pulse 1.2s ease-in-out infinite alternate}
+.menu-skeleton div:nth-child(2){width:78%}.menu-skeleton div:nth-child(3){width:55%}
+@keyframes pulse{from{opacity:.45}to{opacity:1}}
+.paymenttype{display:block;text-transform:uppercase;letter-spacing:.4px}
+.paymentdetail{display:block;color:var(--muted);font-size:10px;margin-top:4px;text-transform:none}
+.paymentstatus{display:block;text-transform:capitalize;margin-bottom:7px}
+.paymentstatus.paid{color:var(--g)}.paymentstatus.failed{color:#a21c1c}.paymentstatus.pending,.paymentstatus.created{color:#8a6500}
+.paidbtn{border:1px solid var(--g);background:#effaf2;color:var(--g);padding:7px 9px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;width:100%}
+.orderadminfields{grid-template-columns:1fr 1.35fr .8fr .9fr .95fr}
+
+@media(max-width:900px){
+  .container{width:min(100% - 28px,1180px)}
+  .nav{height:64px}.brand{font-size:19px}.brand small{font-size:8px;white-space:nowrap}
+  .nav nav.open{top:64px;padding:14px;gap:6px;box-shadow:0 10px 25px #00000012}
+  .nav nav.open a,.nav nav.open button{min-height:44px;justify-content:flex-start}
+  .hero{padding:38px 0 30px}.herogrid{gap:28px}.heroimage{height:auto;min-height:0;border-radius:20px}.heroimage img{min-height:0;height:auto;aspect-ratio:1.15/1}
+  .heroimage strong{right:12px;bottom:12px;font-size:15px;padding:9px 12px}.heroimage small{left:12px;bottom:12px;padding:6px 8px}
+  .hero h1,.page h1{font-size:40px}.hero p,.lead{font-size:16px}
+  .actions{flex-direction:column;align-items:stretch}.actions .big{width:100%}
+  .stripgrid{padding:14px 0}.stripgrid span{padding:3px;font-size:11px}
+  .section{padding:42px 0}.head{align-items:flex-start;gap:12px}.head h2{font-size:31px}
+  .menuday{padding:16px}.day{align-items:flex-start;gap:10px;flex-direction:column}.meals{gap:12px}.meal{padding:14px}.mealimage{height:auto;aspect-ratio:16/9}
+  .cards{gap:14px}.card{padding:18px}
+  .checkout{gap:20px}.summary{position:static;padding:18px}.checkout .summary .primary{min-height:48px}
+  .order{grid-template-columns:1fr;gap:7px}
+  .admin{padding:18px 0}.adminlayout{gap:14px}.sidebar{padding:12px;display:flex;gap:5px;overflow-x:auto;border-radius:12px;position:sticky;top:64px;z-index:5}.sidebar h3{display:none}.sidebar button{flex:0 0 auto;width:auto;padding:10px 12px;white-space:nowrap}
+  .adminhead{margin-bottom:12px}.adminhead h1{font-size:32px;margin:8px 0}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat{padding:13px}.stat b{font-size:21px}
+  .orderadminfields{grid-template-columns:1fr 1fr}.admincard{padding:13px}.adminfields{gap:11px}
+  .table table{min-width:680px}.editor{padding:14px}.editgrid,.files{gap:8px}
+  footer{padding-top:30px}.foot{gap:22px}
+}
+@media(max-width:600px){
+  .brand svg{width:24px}.brand small{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+  .hero h1,.page h1{font-size:34px}.heroimage{border-radius:16px}
+  .stripgrid{grid-template-columns:repeat(2,1fr)}
+  .head{flex-direction:column}.head>a{font-size:13px}
+  .payment-options{gap:9px}.payment-option{padding:13px}.payment-option.selected{padding:12px}
+  .orderadminfields{grid-template-columns:1fr}.adminfields.customerfields{grid-template-columns:1fr}
+  .adminactions{display:grid;grid-template-columns:1fr 1fr}.adminactions>*{width:100%;min-width:0!important}.adminactions .primary{grid-column:1/-1}
+  .form{padding:22px}.auth{padding:28px 0}
+}

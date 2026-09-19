@@ -30,11 +30,31 @@ function MenuCard({d}){
 }
 
 function Home(){
-  const[t,setT]=useState(),[p,setP]=useState([]);
-  useEffect(()=>{api.get('/menu/today').then(x=>setT(x.data)).catch(()=>{});api.get('/plans').then(x=>setP(x.data.slice(0,3))).catch(()=>{})},[]);
-  return <><section className="hero"><div className="container herogrid"><div><span className="eyebrow">VRINDAVAN • MATHURA • FRESH DAILY</span><h1>Ghar Jaisa North Indian Khana <em>Delivered in Vrindavan</em></h1><p>Fresh, balanced lunch and dinner thalis for students, professionals, families and devotees staying in Vrindavan.</p><div className="actions"><Link className="primary big" to="/order">Order Tiffin →</Link><Link className="outline big" to="/menu">View Weekly Menu</Link></div><div className="trust"><span><CheckCircle2/> Fresh Ingredients</span><span><CheckCircle2/> Home-style Cooking</span><span><CheckCircle2/> FREE Delivery</span></div></div><div className="heroimage"><div>🍱</div><strong>₹100 / meal</strong><small>Vrindavan • Mathura</small></div></div></section><div className="strip"><div className="container stripgrid"><span>📅 7-Day Menu</span><span>₹100 / Meal</span><span>🥗 Balanced Thali</span><span>🚚 FREE Delivery</span><span>📦 Disposable Packing</span></div></div><section className="section container"><div className="head"><div><span className="eyebrow">TODAY'S FOOD</span><h2>Today's Menu</h2></div><Link to="/menu">Full week →</Link></div>{t?<MenuCard d={t}/>:<p>Loading menu...</p>}</section><section className="section alt"><div className="container"><div className="head"><div><span className="eyebrow">SIMPLE PRICING</span><h2>Our Plans</h2></div><Link to="/plans">All plans →</Link></div><div className="cards">{p.map(x=><PlanCard p={x} key={x.id}/>)}</div></div></section></>
+  const[t,setT]=useState(null),[p,setP]=useState([]),[menuLoading,setMenuLoading]=useState(true);
+  useEffect(()=>{
+    // Render the latest cached menu immediately, then refresh it in the background.
+    try{
+      const cached=JSON.parse(localStorage.getItem('rkveda_today_menu')||'null');
+      if(cached?.data){setT(cached.data);setMenuLoading(false)}
+    }catch{}
+    api.get('/menu/today').then(x=>{
+      setT(x.data||null);
+      setMenuLoading(false);
+      try{localStorage.setItem('rkveda_today_menu',JSON.stringify({data:x.data,ts:Date.now()}))}catch{}
+    }).catch(()=>setMenuLoading(false));
+    // Plans must not block Today's Menu from rendering.
+    api.get('/plans').then(x=>setP((x.data||[]).slice(0,3))).catch(()=>{});
+  },[]);
+  return <>
+    <section className="hero"><div className="container herogrid">
+      <div><span className="eyebrow">VRINDAVAN • MATHURA • FRESH DAILY</span><h1>Ghar Jaisa North Indian Khana <em>Delivered in Vrindavan</em></h1><p>Fresh, balanced lunch and dinner thalis for students, professionals, families and devotees staying in Vrindavan.</p><div className="actions"><Link className="primary big" to="/order">Order Tiffin →</Link><Link className="outline big" to="/menu">View Weekly Menu</Link></div><div className="trust"><span><CheckCircle2/> Fresh Ingredients</span><span><CheckCircle2/> Home-style Cooking</span><span><CheckCircle2/> FREE Delivery</span></div></div>
+      <div className="heroimage"><img src="/tiffin-thali.webp" alt="RKVeda Tiffin fresh vegetarian lunch thali" loading="eager" fetchPriority="high" decoding="async"/><strong>₹100 / meal</strong><small>Vrindavan • Mathura</small></div>
+    </div></section>
+    <div className="strip"><div className="container stripgrid"><span>📅 7-Day Menu</span><span>₹100 / Meal</span><span>🥗 Balanced Thali</span><span>🚚 FREE Delivery</span><span>📦 Disposable Packing</span></div></div>
+    <section className="section container"><div className="head"><div><span className="eyebrow">TODAY'S FOOD</span><h2>Today's Menu</h2></div><Link to="/menu">Full week →</Link></div>{t?<MenuCard d={t}/>:menuLoading?<div className="menu-skeleton" aria-label="Loading today's menu"><div/><div/><div/></div>:<div className="notice">Today's menu is temporarily unavailable. Please check the full weekly menu.</div>}</section>
+    <section className="section alt"><div className="container"><div className="head"><div><span className="eyebrow">SIMPLE PRICING</span><h2>Our Plans</h2></div><Link to="/plans">All plans →</Link></div><div className="cards">{p.map(x=><PlanCard p={x} key={x.id}/>)}</div></div></section>
+  </>
 }
-
 function Menu(){const[d,setD]=useState([]);useEffect(()=>{api.get('/menu/weekly').then(x=>setD(x.data)).catch(()=>{})},[]);return <main className="page container"><span className="eyebrow">VRINDAVAN WEEKLY MENU</span><h1>7 Days of Ghar Jaisa Khana</h1><p className="lead">Lunch and dinner menus are managed by the RKVeda admin team. Freshly prepared for our Vrindavan service.</p>{d.map(x=><MenuCard d={x} key={x.id}/>)}</main>}
 function PlanCard({p}){return <div className="card"><h3>{p.name}</h3><div className="planprice">₹{Number(p.price).toLocaleString('en-IN')} <small>{p.duration_days===1?'/ meal':`/ ${p.duration_days} days`}</small></div><p>{p.description}</p><ul><li>Dal + Sukhi Sabji</li><li>Rice + 4 Roti</li><li>Salad + Raita</li><li>Disposable Packing</li><li>FREE Delivery</li></ul><Link className="primary full" to={'/order?plan='+p.id}>Choose Plan</Link></div>}
 function Plans(){const[p,setP]=useState([]);useEffect(()=>{api.get('/plans').then(x=>setP(x.data)).catch(()=>{})},[]);return <main className="page container"><span className="eyebrow">VRINDAVAN TIFFIN PLANS</span><h1>Simple & Transparent</h1><p className="lead">₹100 per lunch or dinner thali with free delivery. Subscription plans are available for regular customers.</p><div className="cards">{p.map(x=><PlanCard p={x} key={x.id}/>)}</div></main>}
@@ -219,21 +239,26 @@ function Admin(){
     try{await api.patch('/admin/orders/'+id+'/status',{status});setNotice('Order status updated');load('orders')}
     catch(err){setE(err.response?.data?.message||'Order update failed')}
   };
-  const deleteOrder=async(id)=>{
+  const markCodPaid=async id=>{
+    if(!window.confirm('Mark this COD order as PAID / CASH RECEIVED?'))return;
+    try{await api.patch('/admin/orders/'+id+'/payment',{status:'paid'});setNotice('COD payment marked as paid');load('orders')}
+    catch(err){setE(err.response?.data?.message||'COD payment update failed')}
+  };
+  const deleteOrder=async id=>{
     if(!window.confirm('Delete this order permanently? Payment/subscription records linked to it may also be affected.'))return;
     try{await api.delete('/admin/orders/'+id);setNotice('Order deleted');load('orders')}
     catch(err){setE(err.response?.data?.message||'Order could not be deleted')}
   };
-  const updateCustomer=async(x)=>{
+  const updateCustomer=async x=>{
     try{await api.put('/admin/customers/'+x.id,{name:x.name,mobile:x.mobile,email:x.email});setNotice('Customer updated');load('customers')}
     catch(err){setE(err.response?.data?.message||'Customer update failed')}
   };
-  const deleteCustomer=async(id)=>{
+  const deleteCustomer=async id=>{
     if(!window.confirm('Deactivate this customer? Their order history will be preserved.'))return;
     try{await api.delete('/admin/customers/'+id);setNotice('Customer deactivated');load('customers')}
     catch(err){setE(err.response?.data?.message||'Customer could not be deactivated')}
   };
-  const updatePlan=async(x)=>{
+  const updatePlan=async x=>{
     try{
       await api.put('/admin/plans/'+x.id,{name:x.name,duration_days:Number(x.duration_days),meal_type:x.meal_type,price:Number(x.price),description:x.description||'',active:Number(x.active)?1:0,sort_order:Number(x.sort_order)||0});
       setNotice('Plan updated successfully');load('plans');
@@ -241,15 +266,11 @@ function Admin(){
   };
   if(!isAdmin)return null;
   return <main className="admin"><div className="container adminlayout">
-    <aside className="sidebar">
-      <h3>RKVeda Admin</h3>
-      {['dashboard','orders','customers','menu','plans','subscriptions','payments'].map(x=><button className={t===x?'active':''} onClick={()=>load(x)} key={x}>{x}</button>)}
-    </aside>
-    <section>
-      <div className="adminhead"><h1>{t}</h1><Link to="/">View Site</Link></div>
+    <aside className="sidebar"><h3>RKVeda Admin</h3>{['dashboard','orders','customers','menu','plans','subscriptions','payments'].map(x=><button className={t===x?'active':''} onClick={()=>load(x)} key={x}>{x}</button>)}</aside>
+    <section><div className="adminhead"><h1>{t}</h1><Link to="/">View Site</Link></div>
       {e&&<div className="error">{e}</div>}{notice&&<div className="notice">{notice}</div>}
       {t==='dashboard'&&d&&<div className="stats">{[['Orders',d.orders],['Lunch',d.lunch],['Dinner',d.dinner],['Revenue','₹'+Number(d.revenue).toLocaleString('en-IN')],['Customers',d.customers],['Subscriptions',d.subscriptions],['Pending',d.pendingPayments]].map(x=><div className="stat" key={x[0]}><small>{x[0]}</small><b>{x[1]}</b></div>)}</div>}
-      {t==='orders'&&<AdminOrders rows={rows} updateOrder={updateOrder} deleteOrder={deleteOrder}/>}
+      {t==='orders'&&<AdminOrders rows={rows} updateOrder={updateOrder} markCodPaid={markCodPaid} deleteOrder={deleteOrder}/>}
       {t==='customers'&&<AdminCustomers rows={rows} updateCustomer={updateCustomer} deleteCustomer={deleteCustomer}/>}
       {t==='plans'&&<AdminPlans rows={plans} updatePlan={updatePlan}/>}
       {['payments','subscriptions'].includes(t)&&<Table rows={rows} cols={t==='payments'?['order_number','customer_name','amount','gateway_payment_id','method','status']:['subscription_number','customer_name','mobile','plan_name','start_date','end_date','status']}/>}
@@ -257,22 +278,26 @@ function Admin(){
     </section>
   </div></main>
 }
-
 const ORDER_STATUSES=['pending','confirmed','preparing','out_for_delivery','delivered','cancelled'];
 
-function AdminOrders({rows,updateOrder,deleteOrder}){
-  return <div className="admincards">{!rows.length&&<div className="notice">No orders found.</div>}{rows.map(r=><div className="admincard" key={r.id}>
-    <div className="admincardtop"><div><b>{r.order_number}</b><small>{r.plan_name||'Order'} · {r.created_at?new Date(r.created_at).toLocaleString('en-IN'):''}</small></div><strong>₹{Number(r.total_amount||0).toLocaleString('en-IN')}</strong></div>
-    <div className="adminfields">
-      <div><span>Customer</span><b>{r.customer_name||'—'}</b><a className="callbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call</a></div>
-      <div><span>Delivery</span><b>{[r.address_line1,r.area,r.city,r.pincode].filter(Boolean).join(', ')||'—'}</b></div>
-      <div><span>Payment</span><b>{r.payment_status||'—'}</b></div>
-      <div><span>Order Status</span><select value={r.order_status||'pending'} onChange={ev=>updateOrder(r.id,ev.target.value)}>{ORDER_STATUSES.map(s=><option value={s} key={s}>{s.replaceAll('_',' ')}</option>)}</select></div>
+function AdminOrders({rows,updateOrder,markCodPaid,deleteOrder}){
+  return <div className="admincards">{!rows.length&&<div className="notice">No orders found.</div>}{rows.map(r=>{
+    const paymentType=String(r.payment_type||'').toLowerCase();
+    const paymentStatus=String(r.payment_status_display||r.payment_status||'pending').toLowerCase();
+    const isCod=paymentType==='cod';
+    return <div className="admincard" key={r.id}>
+      <div className="admincardtop"><div><b>{r.order_number}</b><small>{r.plan_name||'Order'} · {r.created_at?new Date(r.created_at).toLocaleString('en-IN'):''}</small></div><strong>₹{Number(r.total_amount||0).toLocaleString('en-IN')}</strong></div>
+      <div className="adminfields orderadminfields">
+        <div><span>Customer</span><b>{r.customer_name||'—'}</b><a className="callbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call</a></div>
+        <div><span>Delivery</span><b>{[r.address_line1,r.area,r.city,r.pincode].filter(Boolean).join(', ')||'—'}</b></div>
+        <div><span>Payment Type</span><b className="paymenttype">{isCod?'COD':'Online'}</b><small className="paymentdetail">{r.payment_method_detail||''}</small></div>
+        <div><span>Payment Status</span><b className={'paymentstatus '+paymentStatus}>{paymentStatus.replaceAll('_',' ')}</b>{isCod&&paymentStatus!=='paid'&&<button className="paidbtn" onClick={()=>markCodPaid(r.id)}>Mark COD Paid</button>}</div>
+        <div><span>Order Status</span><select value={r.order_status||'pending'} onChange={ev=>updateOrder(r.id,ev.target.value)}>{ORDER_STATUSES.map(s=><option value={s} key={s}>{s.replaceAll('_',' ')}</option>)}</select></div>
+      </div>
+      <div className="adminactions"><a className="outline smallbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call Customer</a><button className="danger smallbtn" onClick={()=>deleteOrder(r.id)}><Trash2 size={14}/> Delete</button></div>
     </div>
-    <div className="adminactions"><a className="outline smallbtn" href={'tel:'+String(r.mobile||'').replace(/\s/g,'')}><Phone size={14}/> Call Customer</a><button className="danger smallbtn" onClick={()=>deleteOrder(r.id)}><Trash2 size={14}/> Delete</button></div>
-  </div>)}</div>
+  })}</div>
 }
-
 function AdminCustomers({rows,updateCustomer,deleteCustomer}){
   const[edit,setEdit]=useState(null);
   return <div className="admincards">{!rows.length&&<div className="notice">No customers found.</div>}{rows.map(r=>edit?.id===r.id
